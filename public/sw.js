@@ -47,6 +47,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip non-GET requests (POST, PUT, DELETE, etc.) - they cannot be cached
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Skip API routes - they should always hit the network for fresh data
+  if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
   // Network-first strategy for navigation requests
   if (request.mode === 'navigate') {
     event.respondWith(

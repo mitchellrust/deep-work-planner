@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ScheduleProvider } from "@/context/ScheduleContext";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+import { AuthProvider } from "@/components/AuthProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -43,9 +44,11 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <body className="h-full antialiased bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
         <ServiceWorkerRegistrar />
-        <ThemeProvider>
-          <ScheduleProvider>{children}</ScheduleProvider>
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <ScheduleProvider>{children}</ScheduleProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
