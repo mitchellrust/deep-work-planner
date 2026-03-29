@@ -35,17 +35,7 @@ export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardP
   return (
     <div
       onClick={() => onEdit(item)}
-      className={`
-        w-full group relative p-4 rounded-lg border transition-all cursor-pointer
-        ${isDragging ? "opacity-50 rotate-2 scale-105" : ""}
-        ${
-          item.isDeepWork
-            ? "border-l-4 border-l-indigo-600 dark:border-l-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900"
-            : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
-        }
-        hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20
-        ${item.completed ? "opacity-60" : ""}
-      `}
+      className="w-full group relative p-4 cursor-pointer"
     >
       {/* Deep work indicator */}
       {item.isDeepWork && (

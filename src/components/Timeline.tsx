@@ -50,26 +50,39 @@ function SortableItem({ item, onEdit }: SortableItemProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className="w-full relative"
+      className="w-full"
     >
-      {/* Drag handle - only this area triggers drag */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing z-10 touch-none"
-        aria-label="Drag to reorder"
-      >
-        <div className="flex flex-col gap-0.5">
-          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+      <div className={`
+        flex items-stretch w-full rounded-lg border transition-all
+        ${isDragging ? "opacity-50 rotate-2 scale-105" : ""}
+        ${
+          item.isDeepWork
+            ? "border-l-4 border-l-indigo-600 dark:border-l-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900"
+            : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
+        }
+        hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20
+        ${item.completed ? "opacity-60" : ""}
+      `}>
+        {/* Drag handle - only this area triggers drag */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex items-center justify-center w-8 cursor-grab active:cursor-grabbing touch-none flex-shrink-0 border-r border-gray-200 dark:border-gray-700"
+          aria-label="Drag to reorder"
+        >
+          <div className="flex flex-col gap-0.5">
+            <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+            <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+            <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+            <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+            <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+            <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+          </div>
         </div>
-      </div>
-      <div className="pl-8">
-        <ScheduleItemCard item={item} onEdit={onEdit} isDragging={isDragging} />
+        {/* Card content */}
+        <div className="flex-1 min-w-0">
+          <ScheduleItemCard item={item} onEdit={onEdit} isDragging={isDragging} />
+        </div>
       </div>
     </div>
   );
@@ -93,7 +106,7 @@ export function Timeline() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250, // 250ms press on handle before drag starts
+        delay: 0, // 0ms press on handle before drag starts
         tolerance: 5, // Allow minimal movement during press
       },
     }),
@@ -279,20 +292,30 @@ export function Timeline() {
 
           <DragOverlay>
             {activeItem ? (
-              <div className="opacity-90 max-w-4xl relative">
-                {/* Drag handle in overlay */}
-                <div className="absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center z-10">
-                  <div className="flex flex-col gap-0.5">
-                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
-                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+              <div className="opacity-90 max-w-4xl">
+                <div className={`
+                  flex items-stretch w-full rounded-lg border transition-all
+                  ${
+                    activeItem.isDeepWork
+                      ? "border-l-4 border-l-indigo-600 dark:border-l-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900"
+                      : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
+                  }
+                  shadow-2xl
+                `}>
+                  {/* Drag handle in overlay */}
+                  <div className="flex items-center justify-center w-8 flex-shrink-0 border-r border-gray-200 dark:border-gray-700">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                      <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                      <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                      <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                      <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                      <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                    </div>
                   </div>
-                </div>
-                <div className="pl-8">
-                  <ScheduleItemCard item={activeItem} onEdit={() => {}} isDragging />
+                  <div className="flex-1 min-w-0">
+                    <ScheduleItemCard item={activeItem} onEdit={() => {}} isDragging />
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -330,7 +353,18 @@ export function Timeline() {
               <div className="mt-3 space-y-3">
                 {completedItems.map((item) => (
                   <div key={item.id} className="w-full">
-                    <ScheduleItemCard item={item} onEdit={handleEdit} />
+                    <div className={`
+                      w-full rounded-lg border transition-all
+                      ${
+                        item.isDeepWork
+                          ? "border-l-4 border-l-indigo-600 dark:border-l-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-900"
+                          : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
+                      }
+                      hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20
+                      ${item.completed ? "opacity-60" : ""}
+                    `}>
+                      <ScheduleItemCard item={item} onEdit={handleEdit} />
+                    </div>
                   </div>
                 ))}
               </div>
