@@ -14,9 +14,7 @@ export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardP
 
   const handleToggleComplete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (item.type === "todo") {
-      toggleComplete(item.id);
-    }
+    toggleComplete(item.id);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -30,7 +28,7 @@ export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardP
     <div
       onClick={() => onEdit(item)}
       className={`
-        group relative p-4 rounded-lg border transition-all cursor-pointer
+        w-full group relative p-4 rounded-lg border transition-all cursor-pointer
         ${isDragging ? "opacity-50 rotate-2 scale-105" : ""}
         ${
           item.isDeepWork
@@ -38,7 +36,7 @@ export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardP
             : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
         }
         hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20
-        ${item.type === "todo" && item.completed ? "opacity-60" : ""}
+        ${item.completed ? "opacity-60" : ""}
       `}
     >
       {/* Deep work indicator */}
@@ -51,9 +49,8 @@ export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardP
       )}
 
       <div className="flex items-start gap-3">
-        {/* Checkbox for todos */}
-        {item.type === "todo" && (
-          <button
+        {/* Checkbox for all items */}
+        <button
             onClick={handleToggleComplete}
             className={`
               mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 transition-all
@@ -70,13 +67,12 @@ export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardP
               </svg>
             )}
           </button>
-        )}
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           <h3
             className={`font-medium mb-1 ${
-              item.type === "todo" && item.completed ? "line-through text-gray-500 dark:text-gray-500" : ""
+              item.completed ? "line-through text-gray-500 dark:text-gray-500" : ""
             }`}
           >
             {item.title}
@@ -118,7 +114,7 @@ export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardP
       {/* Delete button (appears on hover) */}
       <button
         onClick={handleDelete}
-        className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+        className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
         aria-label="Delete item"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

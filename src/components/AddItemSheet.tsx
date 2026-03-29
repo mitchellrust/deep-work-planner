@@ -8,12 +8,82 @@ import { nanoid } from "nanoid";
 interface AddItemSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  onSave?: () => void;
   editItem?: ScheduleItem | null;
   prefillTime?: string; // HH:mm format
 }
 
-export function AddItemSheet({ isOpen, onClose, editItem, prefillTime }: AddItemSheetProps) {
-  const { addItem, updateItem } = useSchedule();
+// Helper to calculate order for a new item
+function calculateOrder(
+  newItem: { type: ItemType; startTime?: string; endTime?: string },
+  existingItems: ScheduleItem[]
+): number {
+  // For todos or events without start time, place at the end
+  if (newItem.type === "todo" || !newItem.startTime) {
+    const maxOrder = existingItems.reduce((max, item) => Math.max(max, item.order), 0);
+    return maxOrder + 1;
+  }
+
+  // For events with start time, find the correct position
+  const sortedItems = [...existingItems].sort((a, b) => a.order - b.order);
+  
+  for (let i = 0; i < sortedItems.length; i++) {
+    const item = sortedItems[i];
+    
+    // Skip items without start times (todos)
+    if (!item.startTime) continue;
+    
+    // Compare start times
+    if (newItem.startTime < item.startTime) {
+      // New item starts before this item, place it before
+      return i > 0 ? (sortedItems[i - 1].order + item.order) / 2 : item.order - 1;
+    }
+    
+    if (newItem.startTime === item.startTime) {
+      // Same start time - use end time to decide placement
+      // If only one has an end time, the one without end time goes first
+      const newHasEnd = !!newItem.endTime;
+      const itemHasEnd = !!item.endTime;
+      
+      if (newHasEnd && !itemHasEnd) {
+        // New item has end time, existing doesn't - place new below (after)
+        const nextItem = sortedItems[i + 1];
+        if (nextItem) {
+          return (item.order + nextItem.order) / 2;
+        } else {
+          return item.order + 1;
+        }
+      } else if (!newHasEnd && itemHasEnd) {
+        // Existing has end time, new doesn't - place new above (before)
+        return i > 0 ? (sortedItems[i - 1].order + item.order) / 2 : item.order - 1;
+      } else {
+        // Both have end times or both don't - compare end times
+        const newEndTime = newItem.endTime || newItem.startTime;
+        const itemEndTime = item.endTime || item.startTime;
+        
+        if (newEndTime < itemEndTime) {
+          // New item ends earlier, place above (before)
+          return i > 0 ? (sortedItems[i - 1].order + item.order) / 2 : item.order - 1;
+        } else {
+          // New item ends same or later, place below (after)
+          const nextItem = sortedItems[i + 1];
+          if (nextItem) {
+            return (item.order + nextItem.order) / 2;
+          } else {
+            return item.order + 1;
+          }
+        }
+      }
+    }
+  }
+  
+  // If we get here, new item starts after all existing items
+  const maxOrder = sortedItems.reduce((max, item) => Math.max(max, item.order), 0);
+  return maxOrder + 1;
+}
+
+export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }: AddItemSheetProps) {
+  const { addItem, updateItem, schedule } = useSchedule();
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -24,6 +94,31 @@ export function AddItemSheet({ isOpen, onClose, editItem, prefillTime }: AddItem
   const [endTime, setEndTime] = useState("");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
+  const [timeError, setTimeError] = useState("");
+
+  // Validate time fields
+  useEffect(() => {
+    if (type === "event" && startTime && endTime) {
+      if (startTime > endTime) {
+        setTimeError("Start time cannot be after end time");
+      } else {
+        setTimeError("");
+      }
+    } else {
+      setTimeError("");
+    }
+  }, [type, startTime, endTime]);
+
+  // Check if form has been modified (only relevant when editing)
+  const hasChanges = editItem
+    ? type !== editItem.type ||
+      title.trim() !== editItem.title ||
+      isDeepWork !== editItem.isDeepWork ||
+      startTime !== (editItem.startTime || "") ||
+      endTime !== (editItem.endTime || "") ||
+      location.trim() !== (editItem.location || "") ||
+      notes.trim() !== (editItem.notes || "")
+    : true; // Always allow saving when creating new item
 
   // Reset form when opening/closing or changing edit item
   useEffect(() => {
@@ -45,6 +140,7 @@ export function AddItemSheet({ isOpen, onClose, editItem, prefillTime }: AddItem
         setLocation("");
         setNotes("");
       }
+      setTimeError("");
       // Focus title input
       setTimeout(() => titleInputRef.current?.focus(), 100);
     }
@@ -54,6 +150,7 @@ export function AddItemSheet({ isOpen, onClose, editItem, prefillTime }: AddItem
     e.preventDefault();
     
     if (!title.trim()) return;
+    if (timeError) return;
 
     const itemData: Partial<ScheduleItem> = {
       title: title.trim(),
@@ -70,18 +167,45 @@ export function AddItemSheet({ isOpen, onClose, editItem, prefillTime }: AddItem
 
     if (editItem) {
       // Update existing item
-      updateItem(editItem.id, itemData);
+      // For events, always recalculate order based on time to ensure proper chronological placement
+      const isEvent = (itemData.type || editItem.type) === "event";
+      
+      if (isEvent) {
+        // Recalculate order based on current time
+        const otherItems = schedule.items.filter(item => item.id !== editItem.id);
+        const newOrder = calculateOrder(
+          {
+            type: itemData.type || editItem.type,
+            startTime: itemData.startTime !== undefined ? itemData.startTime : editItem.startTime,
+            endTime: itemData.endTime !== undefined ? itemData.endTime : editItem.endTime,
+          },
+          otherItems
+        );
+        updateItem(editItem.id, { ...itemData, order: newOrder });
+      } else {
+        updateItem(editItem.id, itemData);
+      }
     } else {
-      // Create new item
+      // Create new item with calculated order based on start time
+      const order = calculateOrder(
+        {
+          type,
+          startTime: type === "event" ? startTime || undefined : undefined,
+          endTime: type === "event" ? endTime || undefined : undefined,
+        },
+        schedule.items
+      );
+      
       const newItem: ScheduleItem = {
         id: nanoid(),
         completed: false,
-        order: Date.now(), // Use timestamp for initial ordering
+        order,
         ...itemData,
       } as ScheduleItem;
       addItem(newItem);
     }
 
+    onSave?.();
     onClose();
   };
 
@@ -189,25 +313,38 @@ export function AddItemSheet({ isOpen, onClose, editItem, prefillTime }: AddItem
           {/* Event-specific fields */}
           {type === "event" && (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Start Time</label>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  />
+              <div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Start Time</label>
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className={`w-full px-4 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none ${
+                        timeError
+                          ? "border-red-300 dark:border-red-700 focus:ring-red-500"
+                          : "border-gray-300 dark:border-gray-700 focus:ring-indigo-500"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">End Time</label>
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className={`w-full px-4 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none ${
+                        timeError
+                          ? "border-red-300 dark:border-red-700 focus:ring-red-500"
+                          : "border-gray-300 dark:border-gray-700 focus:ring-indigo-500"
+                      }`}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">End Time</label>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  />
-                </div>
+                {timeError && (
+                  <p className="mt-2 text-sm text-red-600 dark:text-red-400">{timeError}</p>
+                )}
               </div>
 
               <div>
@@ -246,7 +383,12 @@ export function AddItemSheet({ isOpen, onClose, editItem, prefillTime }: AddItem
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+              disabled={!hasChanges || !title.trim() || !!timeError}
+              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+                !hasChanges || !title.trim() || timeError
+                  ? "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed"
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white"
+              }`}
             >
               {editItem ? "Save Changes" : "Add Item"}
             </button>

@@ -52,7 +52,7 @@ function SortableItem({ item, onEdit }: SortableItemProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className="touch-none"
+      className="touch-none w-full"
     >
       <ScheduleItemCard item={item} onEdit={onEdit} isDragging={isDragging} />
     </div>
@@ -64,6 +64,9 @@ export function Timeline() {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [completedExpanded, setCompletedExpanded] = useState(false);
+  const [isDragEdit, setIsDragEdit] = useState(false);
+  const [preDragOrder, setPreDragOrder] = useState<ScheduleItem[] | null>(null);
 
   // Configure sensors for drag and drop
   const sensors = useSensors(
@@ -83,17 +86,88 @@ export function Timeline() {
     })
   );
 
-  // Separate and sort items
-  const timedEvents = schedule.items
-    .filter((item) => item.type === "event" && item.startTime)
-    .sort((a, b) => (a.startTime! < b.startTime! ? -1 : 1));
+  // Sort all items by order to create a unified timeline
+  // Separate completed from incomplete items
+  const allSortedItems = [...schedule.items].sort((a, b) => a.order - b.order);
+  const incompleteItems = allSortedItems.filter(item => !item.completed);
+  const completedItems = allSortedItems.filter(item => item.completed);
+  const allItems = incompleteItems; // For drag and drop context
 
-  const unscheduledTodos = schedule.items
-    .filter((item) => item.type === "todo" || !item.startTime)
-    .sort((a, b) => a.order - b.order);
+  // Helper to check if an event violates chronological order
+  const isEventOutOfOrder = (
+    item: ScheduleItem,
+    itemsBefore: ScheduleItem[],
+    itemsAfter: ScheduleItem[]
+  ): boolean => {
+    // Only check events with start times
+    if (item.type !== "event" || !item.startTime) {
+      return false;
+    }
 
-  // Combine for sortable context
-  const allItems = [...unscheduledTodos, ...timedEvents];
+    // Check if any event before has a later start time
+    const eventBefore = [...itemsBefore]
+      .reverse()
+      .find((i) => i.type === "event" && i.startTime);
+    
+    if (eventBefore && eventBefore.startTime) {
+      if (item.startTime < eventBefore.startTime) {
+        return true; // Current item starts before previous event
+      }
+      
+      // Same start time - check end times
+      if (item.startTime === eventBefore.startTime) {
+        const itemHasEnd = !!item.endTime;
+        const beforeHasEnd = !!eventBefore.endTime;
+        
+        // Events without end time should come before events with end time
+        if (!itemHasEnd && beforeHasEnd) {
+          return true; // Current has no end, previous has end - should be before previous
+        }
+        if (itemHasEnd && !beforeHasEnd) {
+          return false; // Current has end, previous doesn't - correct order
+        }
+        
+        // Both have end times or both don't - compare them
+        const itemEnd = item.endTime || item.startTime;
+        const beforeEnd = eventBefore.endTime || eventBefore.startTime;
+        if (itemEnd < beforeEnd) {
+          return true; // Current item ends before previous event with same start
+        }
+      }
+    }
+
+    // Check if any event after has an earlier start time
+    const eventAfter = itemsAfter.find((i) => i.type === "event" && i.startTime);
+    
+    if (eventAfter && eventAfter.startTime) {
+      if (item.startTime > eventAfter.startTime) {
+        return true; // Current item starts after next event
+      }
+      
+      // Same start time - check end times
+      if (item.startTime === eventAfter.startTime) {
+        const itemHasEnd = !!item.endTime;
+        const afterHasEnd = !!eventAfter.endTime;
+        
+        // Events without end time should come before events with end time
+        if (itemHasEnd && !afterHasEnd) {
+          return true; // Current has end, next doesn't - should be after next
+        }
+        if (!itemHasEnd && afterHasEnd) {
+          return false; // Current has no end, next has end - correct order
+        }
+        
+        // Both have end times or both don't - compare them
+        const itemEnd = item.endTime || item.startTime;
+        const afterEnd = eventAfter.endTime || eventAfter.startTime;
+        if (itemEnd > afterEnd) {
+          return true; // Current item ends after next event with same start
+        }
+      }
+    }
+
+    return false;
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -116,7 +190,24 @@ export function Timeline() {
         order: index,
       }));
 
-      reorderItems(reordered);
+      // Check if the dragged item is an event that's now out of chronological order
+      const draggedItem = reordered[newIndex];
+      const itemsBefore = reordered.slice(0, newIndex);
+      const itemsAfter = reordered.slice(newIndex + 1);
+
+      if (isEventOutOfOrder(draggedItem, itemsBefore, itemsAfter)) {
+        // Event is out of order - save current order and open edit sheet
+        setPreDragOrder([...allItems]);
+        setIsDragEdit(true);
+        reorderItems(reordered);
+        setTimeout(() => {
+          setEditingItem(draggedItem);
+          setIsAddSheetOpen(true);
+        }, 100);
+      } else {
+        // Not out of order - just reorder normally
+        reorderItems(reordered);
+      }
 
       // Haptic feedback on drop
       if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -130,16 +221,28 @@ export function Timeline() {
     setIsAddSheetOpen(true);
   };
 
+  const handleSave = () => {
+    // Clear drag edit state on successful save
+    setIsDragEdit(false);
+    setPreDragOrder(null);
+  };
+
   const handleCloseSheet = () => {
+    // If this was a drag edit and we're closing (user cancelled), restore original order
+    if (isDragEdit && preDragOrder) {
+      reorderItems(preDragOrder);
+    }
     setIsAddSheetOpen(false);
     setEditingItem(null);
+    setIsDragEdit(false);
+    setPreDragOrder(null);
   };
 
   const activeItem = activeId ? allItems.find((item) => item.id === activeId) : null;
 
   return (
     <>
-      <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
+      <div className="max-w-4xl mx-auto px-4 py-6 pb-24 w-full">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -150,43 +253,61 @@ export function Timeline() {
             items={allItems.map((item) => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            {/* Unscheduled to-dos section */}
-            {unscheduledTodos.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                  Unscheduled
-                </h2>
-                <div className="space-y-3">
-                  {unscheduledTodos.map((item) => (
-                    <SortableItem key={item.id} item={item} onEdit={handleEdit} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Timeline section */}
-            {timedEvents.length > 0 && (
-              <div>
-                <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                  Timeline
-                </h2>
-                <div className="space-y-3">
-                  {timedEvents.map((item) => (
-                    <SortableItem key={item.id} item={item} onEdit={handleEdit} />
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Unified timeline - incomplete items sorted by order */}
+            <div className="space-y-3 w-full">
+              {allItems.map((item) => (
+                <SortableItem key={item.id} item={item} onEdit={handleEdit} />
+              ))}
+            </div>
           </SortableContext>
 
           <DragOverlay>
             {activeItem ? (
-              <div className="opacity-90">
+              <div className="opacity-90 max-w-4xl">
                 <ScheduleItemCard item={activeItem} onEdit={() => {}} isDragging />
               </div>
             ) : null}
           </DragOverlay>
         </DndContext>
+
+        {/* Completed section */}
+        {completedItems.length > 0 && (
+          <div className="mt-8">
+            <button
+              onClick={() => setCompletedExpanded(!completedExpanded)}
+              className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <svg
+                  className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform ${
+                    completedExpanded ? "rotate-180" : ""
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+                <span className="font-medium text-gray-700 dark:text-gray-300">
+                  Completed
+                </span>
+                <span className="text-sm text-gray-500 dark:text-gray-500">
+                  ({completedItems.length})
+                </span>
+              </div>
+            </button>
+
+            {completedExpanded && (
+              <div className="mt-3 space-y-3">
+                {completedItems.map((item) => (
+                  <div key={item.id} className="w-full">
+                    <ScheduleItemCard item={item} onEdit={handleEdit} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Floating Action Button */}
@@ -204,6 +325,7 @@ export function Timeline() {
       <AddItemSheet
         isOpen={isAddSheetOpen}
         onClose={handleCloseSheet}
+        onSave={handleSave}
         editItem={editingItem}
       />
     </>
