@@ -77,8 +77,8 @@ export function Timeline() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 150, // 150ms delay before drag starts on touch
-        tolerance: 8,
+        delay: 500, // 500ms long press required before drag starts on touch
+        tolerance: 5, // Allow minimal movement during long press
       },
     }),
     useSensor(KeyboardSensor, {
