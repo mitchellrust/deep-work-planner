@@ -287,22 +287,22 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
 
           {/* Time fields */}
           <div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="min-w-0">
                     <label className="block text-sm font-medium mb-2">Start Time</label>
                     <input
                       type="time"
                       step="300"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none ${
+                      className={`w-full px-2 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none ${
                         timeError
                           ? "border-red-300 dark:border-red-700 focus:ring-red-500"
                           : "border-gray-300 dark:border-gray-700 focus:ring-indigo-500"
                       }`}
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-sm font-medium mb-2">
                       End Time
                     </label>
@@ -312,7 +312,7 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
                       disabled={!startTime}
-                      className={`w-full px-4 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none ${
+                      className={`w-full px-2 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none ${
                         timeError
                           ? "border-red-300 dark:border-red-700 focus:ring-red-500"
                           : "border-gray-300 dark:border-gray-700 focus:ring-indigo-500"
