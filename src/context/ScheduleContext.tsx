@@ -99,31 +99,30 @@ const ScheduleContext = createContext<ScheduleContextType | undefined>(
 
 // Provider component
 export function ScheduleProvider({ children }: { children: ReactNode }) {
-  // Initialize state from localStorage or with empty schedule
-  const [schedule, dispatch] = useReducer(scheduleReducer, createEmptySchedule(), (initial) => {
-    if (typeof window === "undefined") {
-      return initial;
-    }
+  // Always initialize with empty schedule to ensure server/client match
+  const [schedule, dispatch] = useReducer(scheduleReducer, createEmptySchedule());
 
+  // Load from localStorage after mount (client-side only)
+  useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) return initial;
+      if (!stored) return;
 
       const parsed = JSON.parse(stored) as DaySchedule;
       
       // Check if stored schedule is for today
       const today = getTodayString();
       if (parsed.date !== today) {
-        // Old schedule - clear it and start fresh
-        return createEmptySchedule();
+        // Old schedule - already have empty, no need to do anything
+        return;
       }
 
-      return parsed;
+      // Load the stored schedule
+      dispatch({ type: "LOAD_SCHEDULE", payload: parsed });
     } catch (error) {
       console.error("Error loading schedule from localStorage:", error);
-      return initial;
     }
-  });
+  }, []);
 
   // Sync to localStorage whenever schedule changes
   useEffect(() => {
