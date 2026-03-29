@@ -50,11 +50,27 @@ function SortableItem({ item, onEdit }: SortableItemProps) {
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className="touch-none w-full"
+      className="w-full relative"
     >
-      <ScheduleItemCard item={item} onEdit={onEdit} isDragging={isDragging} />
+      {/* Drag handle - only this area triggers drag */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center cursor-grab active:cursor-grabbing z-10 touch-none"
+        aria-label="Drag to reorder"
+      >
+        <div className="flex flex-col gap-0.5">
+          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+          <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+        </div>
+      </div>
+      <div className="pl-8">
+        <ScheduleItemCard item={item} onEdit={onEdit} isDragging={isDragging} />
+      </div>
     </div>
   );
 }
@@ -77,8 +93,8 @@ export function Timeline() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 500, // 500ms long press required before drag starts on touch
-        tolerance: 5, // Allow minimal movement during long press
+        delay: 250, // 250ms press on handle before drag starts
+        tolerance: 5, // Allow minimal movement during press
       },
     }),
     useSensor(KeyboardSensor, {
@@ -263,8 +279,21 @@ export function Timeline() {
 
           <DragOverlay>
             {activeItem ? (
-              <div className="opacity-90 max-w-4xl">
-                <ScheduleItemCard item={activeItem} onEdit={() => {}} isDragging />
+              <div className="opacity-90 max-w-4xl relative">
+                {/* Drag handle in overlay */}
+                <div className="absolute left-0 top-0 bottom-0 w-8 flex items-center justify-center z-10">
+                  <div className="flex flex-col gap-0.5">
+                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                    <div className="w-1 h-1 rounded-full bg-gray-400 dark:bg-gray-600"></div>
+                  </div>
+                </div>
+                <div className="pl-8">
+                  <ScheduleItemCard item={activeItem} onEdit={() => {}} isDragging />
+                </div>
               </div>
             ) : null}
           </DragOverlay>
