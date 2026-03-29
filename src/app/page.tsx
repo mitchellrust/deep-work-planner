@@ -14,7 +14,7 @@ export default function Home() {
   const hasItems = schedule.items.length > 0;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-full flex flex-col overflow-auto">
       <Header onAddClick={() => setIsAddSheetOpen(true)} />
       
       {hasItems ? (

@@ -32,7 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full`} suppressHydrationWarning>
-      <body className="min-h-full antialiased bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      <body className="h-full antialiased bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
         <ThemeProvider>
           <ScheduleProvider>{children}</ScheduleProvider>
         </ThemeProvider>

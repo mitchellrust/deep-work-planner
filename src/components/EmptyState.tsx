@@ -1,6 +1,6 @@
 export function EmptyState({ onAddClick }: { onAddClick: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+    <div className="flex flex-col items-center justify-center flex-1 py-16 px-4 text-center">
       <div className="mb-6">
         <svg
           className="w-24 h-24 text-gray-300 dark:text-gray-700 mx-auto"
