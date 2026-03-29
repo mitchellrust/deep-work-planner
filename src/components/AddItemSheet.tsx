@@ -285,6 +285,7 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
                     <label className="block text-sm font-medium mb-2">Start Time</label>
                     <input
                       type="time"
+                      step="300"
                       value={startTime}
                       onChange={(e) => setStartTime(e.target.value)}
                       className={`w-full px-4 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none ${
@@ -300,6 +301,7 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
                     </label>
                     <input
                       type="time"
+                      step="300"
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
                       disabled={!startTime}
