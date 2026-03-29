@@ -9,6 +9,14 @@ interface ScheduleItemCardProps {
   isDragging?: boolean;
 }
 
+// Convert 24-hour time (HH:mm) to 12-hour format (h:mm AM/PM)
+function formatTime12Hour(time: string): string {
+  const [hours, minutes] = time.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12; // Convert 0 to 12, and 13-23 to 1-11
+  return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
 export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardProps) {
   const { toggleComplete, deleteItem } = useSchedule();
 
@@ -86,8 +94,8 @@ export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardP
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span>
-                  {item.startTime}
-                  {item.endTime && ` - ${item.endTime}`}
+                  {formatTime12Hour(item.startTime)}
+                  {item.endTime && ` - ${formatTime12Hour(item.endTime)}`}
                 </span>
               </div>
             )}
