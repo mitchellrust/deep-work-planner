@@ -21,5 +21,4 @@ export type ScheduleAction =
   | { type: "DELETE_ITEM"; payload: string } // id
   | { type: "REORDER_ITEMS"; payload: ScheduleItem[] }
   | { type: "TOGGLE_COMPLETE"; payload: string } // id
-  | { type: "CLEAR_SCHEDULE" }
-  | { type: "LOAD_SCHEDULE"; payload: DaySchedule };
+  | { type: "SET_ITEMS"; payload: ScheduleItem[] };

@@ -9,9 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "^1.11.1",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@neondatabase/serverless": "^1.0.2",
+    "drizzle-orm": "^0.45.2",
     "nanoid": "^5.1.7",
     "next": "16.2.1",
     "next-auth": "^5.0.0-beta.30",
@@ -25,6 +28,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",

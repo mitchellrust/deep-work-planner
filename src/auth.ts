@@ -2,8 +2,16 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import type { JWT } from "next-auth/jwt";
 import type { Session } from "next-auth";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { db } from "@/db";
+import { users, accounts } from "@/db/schema";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: DrizzleAdapter(db, {
+    usersTable: users,
+    accountsTable: accounts,
+  }),
+  
   providers: [
     Google({
       // Request offline access and force consent prompt to ensure we always get refresh tokens
@@ -18,16 +26,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   
-  // Use JWT strategy (no database adapter yet)
-  // Can easily add a database adapter later for persistent sessions
+  // Use JWT strategy - adapter stores users/accounts but sessions stay in JWT
   session: {
     strategy: "jwt",
   },
 
   callbacks: {
-    // Store OAuth tokens in the JWT when user signs in
-    async jwt({ token, account, profile }) {
-      // Initial sign in - persist access token, refresh token, and expiry
+    // Store OAuth tokens and user ID in the JWT when user signs in
+    async jwt({ token, account, profile, user }) {
+      // Initial sign in - persist access token, refresh token, expiry, and user ID
       if (account && profile) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
@@ -37,13 +44,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.picture = profile.picture ?? undefined;
       }
       
+      // Store user ID from the database (available on initial sign-in)
+      if (user) {
+        token.userId = user.id;
+      }
+      
       return token;
     },
 
-    // Expose user info and token metadata to the client session
+    // Expose user info, user ID, and token metadata to the client session
     async session({ session, token }: { session: Session; token: JWT }) {
       // Add custom fields to session
       if (token) {
+        session.user.id = token.userId as string;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
         session.user.image = token.picture as string;

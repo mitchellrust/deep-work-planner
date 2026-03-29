@@ -3,7 +3,7 @@
 import { ThemeToggle } from "./ThemeToggle";
 import { useSession, signIn, signOut } from "next-auth/react";
 
-export function Header({ onAddClick }: { onAddClick: () => void }) {
+export function Header() {
   const { data: session, status } = useSession();
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -37,14 +37,9 @@ export function Header({ onAddClick }: { onAddClick: () => void }) {
                 Sign out
               </button>
             </div>
-          ) : (
-            <button
-              onClick={() => signIn("google")}
-              className="text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-            >
-              Sign in with Google
-            </button>
-          )}
+          ) : 
+            null
+          }
           <ThemeToggle />
         </div>
       </div>

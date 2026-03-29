@@ -9,6 +9,7 @@ declare module "next-auth" {
    */
   interface Session {
     user: {
+      id: string;
       email: string;
       name: string;
       image: string;
@@ -23,6 +24,7 @@ declare module "next-auth/jwt" {
    * Extends the built-in JWT type with OAuth tokens and user profile
    */
   interface JWT {
+    userId?: string;
     accessToken?: string;
     refreshToken?: string;
     expiresAt?: number;

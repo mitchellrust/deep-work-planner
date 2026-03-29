@@ -7,11 +7,10 @@ import {
   useEffect,
   ReactNode,
   useCallback,
+  useState,
 } from "react";
 import { DaySchedule, ScheduleItem, ScheduleAction } from "@/types";
-import { useMidnightReset } from "@/hooks/useMidnightReset";
-
-const STORAGE_KEY = "dwp-schedule";
+import { useSession } from "next-auth/react";
 
 // Helper to get today's date in YYYY-MM-DD format
 function getTodayString(): string {
@@ -71,11 +70,11 @@ function scheduleReducer(
       };
     }
 
-    case "CLEAR_SCHEDULE":
-      return createEmptySchedule();
-
-    case "LOAD_SCHEDULE":
-      return action.payload;
+    case "SET_ITEMS":
+      return {
+        ...state,
+        items: action.payload,
+      };
 
     default:
       return state;
@@ -85,12 +84,12 @@ function scheduleReducer(
 // Context type
 interface ScheduleContextType {
   schedule: DaySchedule;
-  addItem: (item: ScheduleItem) => void;
-  updateItem: (id: string, updates: Partial<ScheduleItem>) => void;
-  deleteItem: (id: string) => void;
-  reorderItems: (items: ScheduleItem[]) => void;
-  toggleComplete: (id: string) => void;
-  clearSchedule: () => void;
+  isLoading: boolean;
+  addItem: (item: ScheduleItem) => Promise<void>;
+  updateItem: (id: string, updates: Partial<ScheduleItem>) => Promise<void>;
+  deleteItem: (id: string) => Promise<void>;
+  reorderItems: (items: ScheduleItem[]) => Promise<void>;
+  toggleComplete: (id: string) => Promise<void>;
 }
 
 const ScheduleContext = createContext<ScheduleContextType | undefined>(
@@ -99,78 +98,180 @@ const ScheduleContext = createContext<ScheduleContextType | undefined>(
 
 // Provider component
 export function ScheduleProvider({ children }: { children: ReactNode }) {
-  // Always initialize with empty schedule to ensure server/client match
+  const { data: session, status } = useSession();
   const [schedule, dispatch] = useReducer(scheduleReducer, createEmptySchedule());
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load from localStorage after mount (client-side only)
+  // Fetch schedule from API when session is available
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) return;
+    if (status === "loading") {
+      return;
+    }
 
-      const parsed = JSON.parse(stored) as DaySchedule;
-      
-      // Check if stored schedule is for today
-      const today = getTodayString();
-      if (parsed.date !== today) {
-        // Old schedule - already have empty, no need to do anything
-        return;
+    if (!session?.user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchSchedule = async () => {
+      try {
+        const today = getTodayString();
+        const response = await fetch(`/api/schedule?date=${today}`);
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch schedule");
+        }
+
+        const items = await response.json();
+        dispatch({ type: "SET_ITEMS", payload: items });
+      } catch (error) {
+        console.error("Error fetching schedule:", error);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      // Load the stored schedule
-      dispatch({ type: "LOAD_SCHEDULE", payload: parsed });
-    } catch (error) {
-      console.error("Error loading schedule from localStorage:", error);
-    }
-  }, []);
+    fetchSchedule();
+  }, [session, status]);
 
-  // Sync to localStorage whenever schedule changes
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(schedule));
-    }
-  }, [schedule]);
-
-  // Auto-reset at midnight
-  const handleMidnight = useCallback(() => {
-    dispatch({ type: "CLEAR_SCHEDULE" });
-  }, []);
-
-  useMidnightReset(handleMidnight);
-
-  // Action creators
-  const addItem = useCallback((item: ScheduleItem) => {
+  // Action creators with API calls and optimistic updates
+  const addItem = useCallback(async (item: ScheduleItem) => {
+    // Optimistic update
     dispatch({ type: "ADD_ITEM", payload: item });
+
+    try {
+      const response = await fetch("/api/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to add item");
+      }
+    } catch (error) {
+      console.error("Error adding item:", error);
+      // Rollback on error
+      dispatch({ type: "DELETE_ITEM", payload: item.id });
+      throw error;
+    }
   }, []);
 
-  const updateItem = useCallback((id: string, updates: Partial<ScheduleItem>) => {
+  const updateItem = useCallback(async (id: string, updates: Partial<ScheduleItem>) => {
+    // Store previous state for rollback
+    const previousItems = schedule.items;
+    
+    // Optimistic update
     dispatch({ type: "UPDATE_ITEM", payload: { id, updates } });
-  }, []);
 
-  const deleteItem = useCallback((id: string) => {
+    try {
+      const response = await fetch(`/api/schedule/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update item");
+      }
+    } catch (error) {
+      console.error("Error updating item:", error);
+      // Rollback on error
+      dispatch({ type: "SET_ITEMS", payload: previousItems });
+      throw error;
+    }
+  }, [schedule.items]);
+
+  const deleteItem = useCallback(async (id: string) => {
+    // Store the item for rollback
+    const deletedItem = schedule.items.find((item) => item.id === id);
+    
+    // Optimistic update
     dispatch({ type: "DELETE_ITEM", payload: id });
-  }, []);
 
-  const reorderItems = useCallback((items: ScheduleItem[]) => {
+    try {
+      const response = await fetch(`/api/schedule/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete item");
+      }
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      // Rollback on error
+      if (deletedItem) {
+        dispatch({ type: "ADD_ITEM", payload: deletedItem });
+      }
+      throw error;
+    }
+  }, [schedule.items]);
+
+  const reorderItems = useCallback(async (items: ScheduleItem[]) => {
+    // Store previous state for rollback
+    const previousItems = schedule.items;
+    
+    // Optimistic update
     dispatch({ type: "REORDER_ITEMS", payload: items });
-  }, []);
 
-  const toggleComplete = useCallback((id: string) => {
+    try {
+      const reorderData = items.map((item) => ({
+        id: item.id,
+        order: item.order,
+      }));
+
+      const response = await fetch("/api/schedule/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: reorderData }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reorder items");
+      }
+    } catch (error) {
+      console.error("Error reordering items:", error);
+      // Rollback on error
+      dispatch({ type: "SET_ITEMS", payload: previousItems });
+      throw error;
+    }
+  }, [schedule.items]);
+
+  const toggleComplete = useCallback(async (id: string) => {
+    const item = schedule.items.find((i) => i.id === id);
+    if (!item) return;
+
+    const newCompleted = !item.completed;
+    
+    // Optimistic update
     dispatch({ type: "TOGGLE_COMPLETE", payload: id });
-  }, []);
 
-  const clearSchedule = useCallback(() => {
-    dispatch({ type: "CLEAR_SCHEDULE" });
-  }, []);
+    try {
+      const response = await fetch(`/api/schedule/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed: newCompleted }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to toggle complete");
+      }
+    } catch (error) {
+      console.error("Error toggling complete:", error);
+      // Rollback on error
+      dispatch({ type: "TOGGLE_COMPLETE", payload: id });
+      throw error;
+    }
+  }, [schedule.items]);
 
   const value: ScheduleContextType = {
     schedule,
+    isLoading,
     addItem,
     updateItem,
     deleteItem,
     reorderItems,
     toggleComplete,
-    clearSchedule,
   };
 
   return (
