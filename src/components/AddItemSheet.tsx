@@ -83,7 +83,7 @@ function calculateOrder(
 }
 
 export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }: AddItemSheetProps) {
-  const { addItem, updateItem, schedule } = useSchedule();
+  const { addItem, updateItem, deleteItem, schedule } = useSchedule();
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -204,6 +204,13 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
 
     onSave?.();
     onClose();
+  };
+
+  const handleDelete = () => {
+    if (editItem && confirm("Delete this item?")) {
+      deleteItem(editItem.id);
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -345,25 +352,41 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-3 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!hasChanges || !title.trim() || !!timeError}
-              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-                !hasChanges || !title.trim() || timeError
-                  ? "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed"
-                  : "bg-indigo-600 hover:bg-indigo-700 text-white"
-              }`}
-            >
-              {editItem ? "Save Changes" : "Add Item"}
-            </button>
+          <div className="space-y-3 pt-2">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-3 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!hasChanges || !title.trim() || !!timeError}
+                className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+                  !hasChanges || !title.trim() || timeError
+                    ? "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-500 cursor-not-allowed"
+                    : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                }`}
+              >
+                {editItem ? "Save Changes" : "Add Item"}
+              </button>
+            </div>
+            
+            {/* Delete button - only show when editing */}
+            {editItem && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="w-full py-3 px-4 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-lg font-medium hover:bg-red-100 dark:hover:bg-red-950/30 transition-colors border border-red-200 dark:border-red-900 flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete Item
+              </button>
+            )}
           </div>
         </form>
       </div>
