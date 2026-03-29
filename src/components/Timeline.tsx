@@ -106,7 +106,7 @@ export function Timeline() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 0, // 0ms press on handle before drag starts
+        delay: 150, // 150ms press on handle before drag starts
         tolerance: 5, // Allow minimal movement during press
       },
     }),

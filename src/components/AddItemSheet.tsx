@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { ScheduleItem } from "@/types";
 import { useSchedule } from "@/context/ScheduleContext";
 import { nanoid } from "nanoid";
+import Picker from "react-mobile-picker";
 
 interface AddItemSheetProps {
   isOpen: boolean;
@@ -11,6 +12,59 @@ interface AddItemSheetProps {
   onSave?: () => void;
   editItem?: ScheduleItem | null;
   prefillTime?: string; // HH:mm format
+}
+
+// Generate hours (01-12) for 12-hour format
+const hours = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, "0"));
+
+// Generate minutes in 5-minute increments (00, 05, 10, ..., 55)
+const minutes = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, "0"));
+
+// AM/PM periods
+const periods = ["AM", "PM"];
+
+// Convert HH:mm string to picker value
+function timeStringToPickerValue(timeString: string): { hour: string; minute: string; period: string } {
+  if (!timeString) return { hour: "09", minute: "00", period: "AM" };
+  const [hourStr, minute] = timeString.split(":");
+  const hourNum = parseInt(hourStr);
+  
+  // Convert 24-hour to 12-hour format
+  const period = hourNum >= 12 ? "PM" : "AM";
+  const hour12 = hourNum % 12 || 12;
+  
+  // Round minute to nearest 5-minute increment
+  const minuteNum = parseInt(minute);
+  const roundedMinute = Math.round(minuteNum / 5) * 5;
+  
+  return {
+    hour: hour12.toString().padStart(2, "0"),
+    minute: roundedMinute.toString().padStart(2, "0"),
+    period,
+  };
+}
+
+// Convert picker value to HH:mm string (24-hour format)
+function pickerValueToTimeString(value: { hour: string; minute: string; period: string }): string {
+  let hour24 = parseInt(value.hour);
+  
+  // Convert 12-hour to 24-hour format
+  if (value.period === "AM") {
+    if (hour24 === 12) hour24 = 0; // 12 AM = 00:00
+  } else {
+    if (hour24 !== 12) hour24 += 12; // PM hours (except 12 PM)
+  }
+  
+  return `${hour24.toString().padStart(2, "0")}:${value.minute}`;
+}
+
+// Format time for display (12-hour format)
+function formatTimeDisplay(timeString: string): string {
+  if (!timeString) return "Select time";
+  const [hours, minutes] = timeString.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
 }
 
 // Helper to calculate order for a new item
@@ -94,6 +148,12 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
   const [timeError, setTimeError] = useState("");
+  
+  // Picker states
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [startPickerValue, setStartPickerValue] = useState(timeStringToPickerValue("09:00"));
+  const [endPickerValue, setEndPickerValue] = useState(timeStringToPickerValue("10:00"));
 
   // Clear end time when start time is removed
   useEffect(() => {
@@ -133,6 +193,8 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
         setIsDeepWork(editItem.isDeepWork);
         setStartTime(editItem.startTime || "");
         setEndTime(editItem.endTime || "");
+        setStartPickerValue(timeStringToPickerValue(editItem.startTime || "09:00"));
+        setEndPickerValue(timeStringToPickerValue(editItem.endTime || "10:00"));
         setLocation(editItem.location || "");
         setNotes(editItem.notes || "");
       } else {
@@ -140,10 +202,14 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
         setIsDeepWork(false);
         setStartTime(prefillTime || "");
         setEndTime("");
+        setStartPickerValue(timeStringToPickerValue(prefillTime || "09:00"));
+        setEndPickerValue(timeStringToPickerValue("10:00"));
         setLocation("");
         setNotes("");
       }
       setTimeError("");
+      setShowStartPicker(false);
+      setShowEndPicker(false);
       // Focus title input
       setTimeout(() => titleInputRef.current?.focus(), 100);
     }
@@ -287,44 +353,76 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
 
           {/* Time fields */}
           <div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="min-w-0">
-                    <label className="block text-sm font-medium mb-2">Start Time</label>
-                    <input
-                      type="time"
-                      step="300"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className={`w-full px-2 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none ${
-                        timeError
-                          ? "border-red-300 dark:border-red-700 focus:ring-red-500"
-                          : "border-gray-300 dark:border-gray-700 focus:ring-indigo-500"
-                      }`}
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <label className="block text-sm font-medium mb-2">
-                      End Time
-                    </label>
-                    <input
-                      type="time"
-                      step="300"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      disabled={!startTime}
-                      className={`w-full px-2 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none ${
-                        timeError
-                          ? "border-red-300 dark:border-red-700 focus:ring-red-500"
-                          : "border-gray-300 dark:border-gray-700 focus:ring-indigo-500"
-                      } ${
-                        !startTime ? "opacity-50 cursor-not-allowed" : ""
-                      }`}
-                    />
-                  </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="min-w-0">
+                <label className="block text-sm font-medium mb-2">Start Time</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowStartPicker(true)}
+                    className={`w-full px-2 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none text-left ${
+                      timeError
+                        ? "border-red-300 dark:border-red-700 focus:ring-red-500"
+                        : "border-gray-300 dark:border-gray-700 focus:ring-indigo-500"
+                    }`}
+                  >
+                    {startTime ? formatTimeDisplay(startTime) : <span className="text-gray-400">Select time</span>}
+                  </button>
+                  {startTime && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setStartTime("");
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
-                {timeError && (
-                  <p className="mt-2 text-sm text-red-600 dark:text-red-400">{timeError}</p>
-                )}
+              </div>
+              <div className="min-w-0">
+                <label className="block text-sm font-medium mb-2">
+                  End Time
+                </label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => startTime && setShowEndPicker(true)}
+                    disabled={!startTime}
+                    className={`w-full px-2 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none text-left ${
+                      timeError
+                        ? "border-red-300 dark:border-red-700 focus:ring-red-500"
+                        : "border-gray-300 dark:border-gray-700 focus:ring-indigo-500"
+                    } ${
+                      !startTime ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    {endTime ? formatTimeDisplay(endTime) : <span className="text-gray-400">Select time</span>}
+                  </button>
+                  {endTime && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEndTime("");
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            {timeError && (
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400">{timeError}</p>
+            )}
           </div>
 
           {/* Location */}
@@ -390,6 +488,198 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
           </div>
         </form>
       </div>
+
+      {/* Start Time Picker Modal */}
+      {showStartPicker && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowStartPicker(false)}
+          />
+          <div className="relative w-full max-w-4xl bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+              <button
+                onClick={() => setShowStartPicker(false)}
+                className="text-gray-600 dark:text-gray-400 font-medium"
+              >
+                Cancel
+              </button>
+              <h3 className="font-semibold">Start Time</h3>
+              <button
+                onClick={() => {
+                  setStartTime(pickerValueToTimeString(startPickerValue));
+                  setShowStartPicker(false);
+                }}
+                className="text-indigo-600 dark:text-indigo-400 font-medium"
+              >
+                Done
+              </button>
+            </div>
+            <div className="p-4">
+              <div className="relative">
+                <Picker
+                  value={startPickerValue}
+                  onChange={setStartPickerValue}
+                  wheelMode="natural"
+                  height={216}
+                >
+                  <Picker.Column name="hour">
+                    {hours.map((hour) => (
+                      <Picker.Item key={hour} value={hour}>
+                        {({ selected }) => (
+                          <div
+                            className={`py-2 text-center ${
+                              selected
+                                ? "text-indigo-600 dark:text-indigo-400 font-semibold text-lg"
+                                : "text-gray-400 dark:text-gray-600"
+                            }`}
+                          >
+                            {hour}
+                          </div>
+                        )}
+                      </Picker.Item>
+                    ))}
+                  </Picker.Column>
+                  <Picker.Column name="minute">
+                    {minutes.map((minute) => (
+                      <Picker.Item key={minute} value={minute}>
+                        {({ selected }) => (
+                          <div
+                            className={`py-2 text-center ${
+                              selected
+                                ? "text-indigo-600 dark:text-indigo-400 font-semibold text-lg"
+                                : "text-gray-400 dark:text-gray-600"
+                            }`}
+                          >
+                            {minute}
+                          </div>
+                        )}
+                      </Picker.Item>
+                    ))}
+                  </Picker.Column>
+                  <Picker.Column name="period">
+                    {periods.map((period) => (
+                      <Picker.Item key={period} value={period}>
+                        {({ selected }) => (
+                          <div
+                            className={`py-2 text-center ${
+                              selected
+                                ? "text-indigo-600 dark:text-indigo-400 font-semibold text-lg"
+                                : "text-gray-400 dark:text-gray-600"
+                            }`}
+                          >
+                            {period}
+                          </div>
+                        )}
+                      </Picker.Item>
+                    ))}
+                  </Picker.Column>
+                </Picker>
+                {/* Colon separator */}
+                <div className="absolute top-1/2 left-[35%] -translate-x-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400 dark:text-gray-600 pointer-events-none">
+                  :
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End Time Picker Modal */}
+      {showEndPicker && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowEndPicker(false)}
+          />
+          <div className="relative w-full max-w-4xl bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+              <button
+                onClick={() => setShowEndPicker(false)}
+                className="text-gray-600 dark:text-gray-400 font-medium"
+              >
+                Cancel
+              </button>
+              <h3 className="font-semibold">End Time</h3>
+              <button
+                onClick={() => {
+                  setEndTime(pickerValueToTimeString(endPickerValue));
+                  setShowEndPicker(false);
+                }}
+                className="text-indigo-600 dark:text-indigo-400 font-medium"
+              >
+                Done
+              </button>
+            </div>
+            <div className="p-4">
+              <div className="relative">
+                <Picker
+                  value={endPickerValue}
+                  onChange={setEndPickerValue}
+                  wheelMode="natural"
+                  height={216}
+                >
+                  <Picker.Column name="hour">
+                    {hours.map((hour) => (
+                      <Picker.Item key={hour} value={hour}>
+                        {({ selected }) => (
+                          <div
+                            className={`py-2 text-center ${
+                              selected
+                                ? "text-indigo-600 dark:text-indigo-400 font-semibold text-lg"
+                                : "text-gray-400 dark:text-gray-600"
+                            }`}
+                          >
+                            {hour}
+                          </div>
+                        )}
+                      </Picker.Item>
+                    ))}
+                  </Picker.Column>
+                  <Picker.Column name="minute">
+                    {minutes.map((minute) => (
+                      <Picker.Item key={minute} value={minute}>
+                        {({ selected }) => (
+                          <div
+                            className={`py-2 text-center ${
+                              selected
+                                ? "text-indigo-600 dark:text-indigo-400 font-semibold text-lg"
+                                : "text-gray-400 dark:text-gray-600"
+                            }`}
+                          >
+                            {minute}
+                          </div>
+                        )}
+                      </Picker.Item>
+                    ))}
+                  </Picker.Column>
+                  <Picker.Column name="period">
+                    {periods.map((period) => (
+                      <Picker.Item key={period} value={period}>
+                        {({ selected }) => (
+                          <div
+                            className={`py-2 text-center ${
+                              selected
+                                ? "text-indigo-600 dark:text-indigo-400 font-semibold text-lg"
+                                : "text-gray-400 dark:text-gray-600"
+                            }`}
+                          >
+                            {period}
+                          </div>
+                        )}
+                      </Picker.Item>
+                    ))}
+                  </Picker.Column>
+                </Picker>
+                {/* Colon separator */}
+                <div className="absolute top-1/2 left-[35%] -translate-x-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400 dark:text-gray-600 pointer-events-none">
+                  :
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
