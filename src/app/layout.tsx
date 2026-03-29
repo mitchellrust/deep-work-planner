@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ScheduleProvider } from "@/context/ScheduleContext";
+import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -12,6 +13,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Deep Work Planner",
   description: "A minimal, mobile-first daily planner for deep work scheduling",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Deep Work Planner",
+  },
+  icons: {
+    apple: "/icon-192x192.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -33,6 +42,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <body className="h-full antialiased bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+        <ServiceWorkerRegistrar />
         <ThemeProvider>
           <ScheduleProvider>{children}</ScheduleProvider>
         </ThemeProvider>
