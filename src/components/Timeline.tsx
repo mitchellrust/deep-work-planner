@@ -93,21 +93,21 @@ export function Timeline() {
   const completedItems = allSortedItems.filter(item => item.completed);
   const allItems = incompleteItems; // For drag and drop context
 
-  // Helper to check if an event violates chronological order
+  // Helper to check if an item violates chronological order
   const isEventOutOfOrder = (
     item: ScheduleItem,
     itemsBefore: ScheduleItem[],
     itemsAfter: ScheduleItem[]
   ): boolean => {
-    // Only check events with start times
-    if (item.type !== "event" || !item.startTime) {
+    // Only check items with start times
+    if (!item.startTime) {
       return false;
     }
 
-    // Check if any event before has a later start time
+    // Check if any item before has a later start time
     const eventBefore = [...itemsBefore]
       .reverse()
-      .find((i) => i.type === "event" && i.startTime);
+      .find((i) => i.startTime);
     
     if (eventBefore && eventBefore.startTime) {
       if (item.startTime < eventBefore.startTime) {
@@ -136,8 +136,8 @@ export function Timeline() {
       }
     }
 
-    // Check if any event after has an earlier start time
-    const eventAfter = itemsAfter.find((i) => i.type === "event" && i.startTime);
+    // Check if any item after has an earlier start time
+    const eventAfter = itemsAfter.find((i) => i.startTime);
     
     if (eventAfter && eventAfter.startTime) {
       if (item.startTime > eventAfter.startTime) {

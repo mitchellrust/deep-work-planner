@@ -1,16 +1,13 @@
-export type ItemType = "event" | "todo";
-
 export interface ScheduleItem {
   id: string;
-  type: ItemType;
   title: string;
   isDeepWork: boolean;
-  completed: boolean; // For todos only
-  startTime?: string; // HH:mm format, for events only
-  endTime?: string; // HH:mm format, for events only
-  location?: string; // For events only
+  completed: boolean;
+  startTime?: string; // HH:mm format, optional
+  endTime?: string; // HH:mm format, optional
+  location?: string; // Optional
   notes?: string;
-  order: number; // For manual sorting, especially todos among events
+  order: number; // For manual sorting
 }
 
 export interface DaySchedule {

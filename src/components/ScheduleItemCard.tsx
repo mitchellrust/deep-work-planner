@@ -79,8 +79,8 @@ export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardP
           </h3>
           
           <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-            {/* Time for events */}
-            {item.type === "event" && item.startTime && (
+            {/* Time (if present) */}
+            {item.startTime && (
               <div className="flex items-center gap-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -92,7 +92,7 @@ export function ScheduleItemCard({ item, onEdit, isDragging }: ScheduleItemCardP
               </div>
             )}
             
-            {/* Location for events */}
+            {/* Location (if present) */}
             {item.location && (
               <div className="flex items-center gap-1">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

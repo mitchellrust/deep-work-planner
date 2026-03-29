@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ScheduleItem, ItemType } from "@/types";
+import { ScheduleItem } from "@/types";
 import { useSchedule } from "@/context/ScheduleContext";
 import { nanoid } from "nanoid";
 
@@ -15,16 +15,16 @@ interface AddItemSheetProps {
 
 // Helper to calculate order for a new item
 function calculateOrder(
-  newItem: { type: ItemType; startTime?: string; endTime?: string },
+  newItem: { startTime?: string; endTime?: string },
   existingItems: ScheduleItem[]
 ): number {
-  // For todos or events without start time, place at the end
-  if (newItem.type === "todo" || !newItem.startTime) {
+  // For items without start time, place at the end
+  if (!newItem.startTime) {
     const maxOrder = existingItems.reduce((max, item) => Math.max(max, item.order), 0);
     return maxOrder + 1;
   }
 
-  // For events with start time, find the correct position
+  // For items with start time, find the correct position
   const sortedItems = [...existingItems].sort((a, b) => a.order - b.order);
   
   for (let i = 0; i < sortedItems.length; i++) {
@@ -87,7 +87,6 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
-  const [type, setType] = useState<ItemType>("todo");
   const [title, setTitle] = useState("");
   const [isDeepWork, setIsDeepWork] = useState(false);
   const [startTime, setStartTime] = useState("");
@@ -96,9 +95,16 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
   const [notes, setNotes] = useState("");
   const [timeError, setTimeError] = useState("");
 
+  // Clear end time when start time is removed
+  useEffect(() => {
+    if (!startTime && endTime) {
+      setEndTime("");
+    }
+  }, [startTime, endTime]);
+
   // Validate time fields
   useEffect(() => {
-    if (type === "event" && startTime && endTime) {
+    if (startTime && endTime) {
       if (startTime > endTime) {
         setTimeError("Start time cannot be after end time");
       } else {
@@ -107,12 +113,11 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
     } else {
       setTimeError("");
     }
-  }, [type, startTime, endTime]);
+  }, [startTime, endTime]);
 
   // Check if form has been modified (only relevant when editing)
   const hasChanges = editItem
-    ? type !== editItem.type ||
-      title.trim() !== editItem.title ||
+    ? title.trim() !== editItem.title ||
       isDeepWork !== editItem.isDeepWork ||
       startTime !== (editItem.startTime || "") ||
       endTime !== (editItem.endTime || "") ||
@@ -124,7 +129,6 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
   useEffect(() => {
     if (isOpen) {
       if (editItem) {
-        setType(editItem.type);
         setTitle(editItem.title);
         setIsDeepWork(editItem.isDeepWork);
         setStartTime(editItem.startTime || "");
@@ -132,7 +136,6 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
         setLocation(editItem.location || "");
         setNotes(editItem.notes || "");
       } else {
-        setType("todo");
         setTitle("");
         setIsDeepWork(false);
         setStartTime(prefillTime || "");
@@ -154,28 +157,23 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
 
     const itemData: Partial<ScheduleItem> = {
       title: title.trim(),
-      type,
       isDeepWork,
+      startTime: startTime || undefined,
+      endTime: endTime || undefined,
+      location: location.trim() || undefined,
       notes: notes.trim() || undefined,
     };
 
-    if (type === "event") {
-      itemData.startTime = startTime || undefined;
-      itemData.endTime = endTime || undefined;
-      itemData.location = location.trim() || undefined;
-    }
-
     if (editItem) {
       // Update existing item
-      // For events, always recalculate order based on time to ensure proper chronological placement
-      const isEvent = (itemData.type || editItem.type) === "event";
+      // For items with start time, always recalculate order based on time to ensure proper chronological placement
+      const hasStartTime = itemData.startTime !== undefined ? !!itemData.startTime : !!editItem.startTime;
       
-      if (isEvent) {
+      if (hasStartTime) {
         // Recalculate order based on current time
         const otherItems = schedule.items.filter(item => item.id !== editItem.id);
         const newOrder = calculateOrder(
           {
-            type: itemData.type || editItem.type,
             startTime: itemData.startTime !== undefined ? itemData.startTime : editItem.startTime,
             endTime: itemData.endTime !== undefined ? itemData.endTime : editItem.endTime,
           },
@@ -189,9 +187,8 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
       // Create new item with calculated order based on start time
       const order = calculateOrder(
         {
-          type,
-          startTime: type === "event" ? startTime || undefined : undefined,
-          endTime: type === "event" ? endTime || undefined : undefined,
+          startTime: startTime || undefined,
+          endTime: endTime || undefined,
         },
         schedule.items
       );
@@ -251,35 +248,6 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
             />
           </div>
 
-          {/* Type Toggle */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Type</label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setType("todo")}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  type === "todo"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                }`}
-              >
-                To-Do
-              </button>
-              <button
-                type="button"
-                onClick={() => setType("event")}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  type === "event"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                }`}
-              >
-                Event
-              </button>
-            </div>
-          </div>
-
           {/* Deep Work Toggle */}
           <div className="flex items-center justify-between p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-lg border border-indigo-200 dark:border-indigo-900">
             <div className="flex items-center gap-3">
@@ -310,10 +278,8 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
             </button>
           </div>
 
-          {/* Event-specific fields */}
-          {type === "event" && (
-            <>
-              <div>
+          {/* Time fields */}
+          <div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium mb-2">Start Time</label>
@@ -329,15 +295,20 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">End Time</label>
+                    <label className="block text-sm font-medium mb-2">
+                      End Time
+                    </label>
                     <input
                       type="time"
                       value={endTime}
                       onChange={(e) => setEndTime(e.target.value)}
+                      disabled={!startTime}
                       className={`w-full px-4 py-3 rounded-lg border bg-white dark:bg-gray-800 focus:ring-2 focus:border-transparent outline-none ${
                         timeError
                           ? "border-red-300 dark:border-red-700 focus:ring-red-500"
                           : "border-gray-300 dark:border-gray-700 focus:ring-indigo-500"
+                      } ${
+                        !startTime ? "opacity-50 cursor-not-allowed" : ""
                       }`}
                     />
                   </div>
@@ -345,20 +316,19 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
                 {timeError && (
                   <p className="mt-2 text-sm text-red-600 dark:text-red-400">{timeError}</p>
                 )}
-              </div>
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Location</label>
+          {/* Location */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Location (optional)</label>
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="Where will this take place?"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                />
-              </div>
-            </>
-          )}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+            />
+          </div>
 
           {/* Notes */}
           <div>
