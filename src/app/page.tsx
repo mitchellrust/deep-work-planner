@@ -3,10 +3,12 @@
 import { Header } from "@/components/Header";
 import { Timeline } from "@/components/Timeline";
 import { EmptyState } from "@/components/EmptyState";
+import { PresetPickerSheet } from "@/components/PresetPickerSheet";
 import { useSchedule } from "@/context/ScheduleContext";
 import { useState, useEffect } from "react";
 import { AddItemSheet } from "@/components/AddItemSheet";
 import { useSession, signIn } from "next-auth/react";
+import { Preset } from "@/types";
 
 export default function Home() {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
@@ -42,6 +44,18 @@ function HomeContent({
   const { data: session, status } = useSession();
   const { schedule, isLoading } = useSchedule();
   const hasItems = schedule.items.length > 0;
+  const [isPresetPickerOpen, setIsPresetPickerOpen] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<Preset | null>(null);
+
+  const handleSelectPreset = (preset: Preset) => {
+    setSelectedPreset(preset);
+    setIsAddSheetOpen(true);
+  };
+
+  const handleCloseAddSheet = () => {
+    setIsAddSheetOpen(false);
+    setSelectedPreset(null);
+  };
 
   // Show loading state while checking auth
   if (status === "loading") {
@@ -96,10 +110,19 @@ function HomeContent({
         <Timeline />
       ) : (
         <>
-          <EmptyState onAddClick={() => setIsAddSheetOpen(true)} />
+          <EmptyState 
+            onAddClick={() => setIsAddSheetOpen(true)} 
+            onPickPreset={() => setIsPresetPickerOpen(true)}
+          />
           <AddItemSheet
             isOpen={isAddSheetOpen}
-            onClose={() => setIsAddSheetOpen(false)}
+            onClose={handleCloseAddSheet}
+            preset={selectedPreset}
+          />
+          <PresetPickerSheet
+            isOpen={isPresetPickerOpen}
+            onClose={() => setIsPresetPickerOpen(false)}
+            onSelectPreset={handleSelectPreset}
           />
         </>
       )}

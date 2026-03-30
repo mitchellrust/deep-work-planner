@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ScheduleProvider } from "@/context/ScheduleContext";
+import { PresetProvider } from "@/context/PresetContext";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { AuthProvider } from "@/components/AuthProvider";
 
@@ -46,7 +47,9 @@ export default function RootLayout({
         <ServiceWorkerRegistrar />
         <AuthProvider>
           <ThemeProvider>
-            <ScheduleProvider>{children}</ScheduleProvider>
+            <ScheduleProvider>
+              <PresetProvider>{children}</PresetProvider>
+            </ScheduleProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>

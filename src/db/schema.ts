@@ -64,3 +64,19 @@ export const scheduleItems = pgTable("schedule_items", {
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
 });
+
+// App-specific table: Presets (reusable schedule item templates)
+export const presets = pgTable("presets", {
+  id: text("id").primaryKey(), // nanoid generated on client
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  isDeepWork: boolean("isDeepWork").notNull().default(false),
+  startTime: text("startTime"), // HH:mm format, optional
+  endTime: text("endTime"), // HH:mm format, optional
+  location: text("location"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+});

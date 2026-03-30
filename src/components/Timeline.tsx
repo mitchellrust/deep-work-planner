@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useSchedule } from "@/context/ScheduleContext";
-import { ScheduleItem } from "@/types";
+import { ScheduleItem, Preset } from "@/types";
 import { ScheduleItemCard } from "./ScheduleItemCard";
 import { AddItemSheet } from "./AddItemSheet";
+import { PresetPickerSheet } from "./PresetPickerSheet";
 import {
   DndContext,
   closestCenter,
@@ -91,11 +92,14 @@ function SortableItem({ item, onEdit }: SortableItemProps) {
 export function Timeline() {
   const { schedule, reorderItems } = useSchedule();
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [isPresetPickerOpen, setIsPresetPickerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<Preset | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [completedExpanded, setCompletedExpanded] = useState(false);
   const [isDragEdit, setIsDragEdit] = useState(false);
   const [preDragOrder, setPreDragOrder] = useState<ScheduleItem[] | null>(null);
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
 
   // Configure sensors for drag and drop
   const sensors = useSensors(
@@ -263,8 +267,43 @@ export function Timeline() {
     }
     setIsAddSheetOpen(false);
     setEditingItem(null);
+    setSelectedPreset(null);
     setIsDragEdit(false);
     setPreDragOrder(null);
+  };
+
+  // Handle preset selection from preset picker
+  const handleSelectPreset = (preset: Preset) => {
+    setSelectedPreset(preset);
+    setIsAddSheetOpen(true);
+  };
+
+  // Long-press detection for FAB
+  const handleFabPressStart = () => {
+    const timer = setTimeout(() => {
+      // Long press detected - open preset picker
+      setIsPresetPickerOpen(true);
+      // Haptic feedback
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(30);
+      }
+    }, 500); // 500ms for long-press
+    setLongPressTimer(timer);
+  };
+
+  const handleFabPressEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  const handleFabClick = () => {
+    // Only open add sheet if it wasn't a long-press
+    // (long-press would have already opened preset picker)
+    if (!isPresetPickerOpen) {
+      setIsAddSheetOpen(true);
+    }
   };
 
   const activeItem = activeId ? allItems.find((item) => item.id === activeId) : null;
@@ -375,9 +414,14 @@ export function Timeline() {
 
       {/* Floating Action Button */}
       <button
-        onClick={() => setIsAddSheetOpen(true)}
+        onClick={handleFabClick}
+        onMouseDown={handleFabPressStart}
+        onMouseUp={handleFabPressEnd}
+        onMouseLeave={handleFabPressEnd}
+        onTouchStart={handleFabPressStart}
+        onTouchEnd={handleFabPressEnd}
         className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-30"
-        aria-label="Add item"
+        aria-label="Add item (long-press for presets)"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -390,6 +434,14 @@ export function Timeline() {
         onClose={handleCloseSheet}
         onSave={handleSave}
         editItem={editingItem}
+        preset={selectedPreset}
+      />
+
+      {/* Preset Picker Sheet */}
+      <PresetPickerSheet
+        isOpen={isPresetPickerOpen}
+        onClose={() => setIsPresetPickerOpen(false)}
+        onSelectPreset={handleSelectPreset}
       />
     </>
   );

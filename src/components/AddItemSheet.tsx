@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ScheduleItem } from "@/types";
+import { ScheduleItem, Preset } from "@/types";
 import { useSchedule } from "@/context/ScheduleContext";
+import { usePresets } from "@/context/PresetContext";
 import { nanoid } from "nanoid";
 import Picker from "react-mobile-picker";
 
@@ -12,6 +13,7 @@ interface AddItemSheetProps {
   onSave?: () => void;
   editItem?: ScheduleItem | null;
   prefillTime?: string; // HH:mm format
+  preset?: Preset | null; // Preset to prefill from
 }
 
 // Generate hours (01-12) for 12-hour format
@@ -136,8 +138,9 @@ function calculateOrder(
   return maxOrder + 1;
 }
 
-export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }: AddItemSheetProps) {
+export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime, preset }: AddItemSheetProps) {
   const { addItem, updateItem, deleteItem, schedule } = useSchedule();
+  const { addPreset } = usePresets();
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -213,6 +216,16 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
         setEndPickerValue(timeStringToPickerValue(editItem.endTime || "10:00"));
         setLocation(editItem.location || "");
         setNotes(editItem.notes || "");
+      } else if (preset) {
+        // Prefill from preset
+        setTitle(preset.title);
+        setIsDeepWork(preset.isDeepWork);
+        setStartTime(preset.startTime || "");
+        setEndTime(preset.endTime || "");
+        setStartPickerValue(timeStringToPickerValue(preset.startTime || "09:00"));
+        setEndPickerValue(timeStringToPickerValue(preset.endTime || "10:00"));
+        setLocation(preset.location || "");
+        setNotes(preset.notes || "");
       } else {
         setTitle("");
         setIsDeepWork(false);
@@ -229,7 +242,7 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
       // Focus title input
       setTimeout(() => titleInputRef.current?.focus(), 100);
     }
-  }, [isOpen, editItem, prefillTime]);
+  }, [isOpen, editItem, prefillTime, preset]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,6 +310,28 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
     if (editItem && confirm("Delete this item?")) {
       deleteItem(editItem.id);
       onClose();
+    }
+  };
+
+  const handleSaveAsPreset = async () => {
+    if (!title.trim()) return;
+
+    try {
+      const newPreset: Preset = {
+        id: nanoid(),
+        title: title.trim(),
+        isDeepWork,
+        startTime: startTime || undefined,
+        endTime: endTime || undefined,
+        location: location.trim() || undefined,
+        notes: notes.trim() || undefined,
+      };
+
+      await addPreset(newPreset);
+      alert("Preset saved successfully!");
+    } catch (error) {
+      // Error already shown by addPreset
+      console.error("Failed to save preset:", error);
     }
   };
 
@@ -492,6 +527,25 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
                 {editItem ? "Save Changes" : "Add Item"}
               </button>
             </div>
+            
+            {/* Save as Preset button - only show when editing */}
+            {editItem && (
+              <button
+                type="button"
+                onClick={handleSaveAsPreset}
+                disabled={!title.trim() || !!timeError}
+                className={`w-full py-3 px-4 rounded-lg font-medium transition-colors border flex items-center justify-center gap-2 ${
+                  !title.trim() || timeError
+                    ? "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 border-gray-300 dark:border-gray-700 cursor-not-allowed"
+                    : "bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900 hover:bg-indigo-100 dark:hover:bg-indigo-950/30"
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Save as Preset
+              </button>
+            )}
             
             {/* Delete button - only show when editing */}
             {editItem && (
