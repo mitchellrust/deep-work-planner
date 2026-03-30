@@ -311,7 +311,7 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
       />
 
       {/* Sheet */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto mb-6">
+      <div className="fixed inset-x-0 bottom-0 z-50 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">
             {editItem ? "Edit Item" : "Add Item"}
