@@ -1,5 +1,7 @@
 export interface ScheduleItem {
   id: string;
+  userId?: string; // Set by the server from JWT, not sent by client
+  date: string; // YYYY-MM-DD format
   title: string;
   isDeepWork: boolean;
   completed: boolean;

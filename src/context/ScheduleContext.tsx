@@ -147,10 +147,13 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to add item");
+        const errorData = await response.json().catch(() => ({ error: "Failed to add item" }));
+        throw new Error(errorData.error || "Failed to add item");
       }
     } catch (error) {
       console.error("Error adding item:", error);
+      const message = error instanceof Error ? error.message : "Failed to add item";
+      alert(`Error adding item: ${message}`);
       // Rollback on error
       dispatch({ type: "DELETE_ITEM", payload: item.id });
       throw error;
@@ -172,10 +175,13 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to update item");
+        const errorData = await response.json().catch(() => ({ error: "Failed to update item" }));
+        throw new Error(errorData.error || "Failed to update item");
       }
     } catch (error) {
       console.error("Error updating item:", error);
+      const message = error instanceof Error ? error.message : "Failed to update item";
+      alert(`Error updating item: ${message}`);
       // Rollback on error
       dispatch({ type: "SET_ITEMS", payload: previousItems });
       throw error;
@@ -195,10 +201,13 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete item");
+        const errorData = await response.json().catch(() => ({ error: "Failed to delete item" }));
+        throw new Error(errorData.error || "Failed to delete item");
       }
     } catch (error) {
       console.error("Error deleting item:", error);
+      const message = error instanceof Error ? error.message : "Failed to delete item";
+      alert(`Error deleting item: ${message}`);
       // Rollback on error
       if (deletedItem) {
         dispatch({ type: "ADD_ITEM", payload: deletedItem });
@@ -227,10 +236,13 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to reorder items");
+        const errorData = await response.json().catch(() => ({ error: "Failed to reorder items" }));
+        throw new Error(errorData.error || "Failed to reorder items");
       }
     } catch (error) {
       console.error("Error reordering items:", error);
+      const message = error instanceof Error ? error.message : "Failed to reorder items";
+      alert(`Error reordering items: ${message}`);
       // Rollback on error
       dispatch({ type: "SET_ITEMS", payload: previousItems });
       throw error;
@@ -254,10 +266,13 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to toggle complete");
+        const errorData = await response.json().catch(() => ({ error: "Failed to toggle complete" }));
+        throw new Error(errorData.error || "Failed to toggle complete");
       }
     } catch (error) {
       console.error("Error toggling complete:", error);
+      const message = error instanceof Error ? error.message : "Failed to toggle complete";
+      alert(`Error toggling complete: ${message}`);
       // Rollback on error
       dispatch({ type: "TOGGLE_COMPLETE", payload: id });
       throw error;

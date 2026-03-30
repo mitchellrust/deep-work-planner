@@ -155,6 +155,22 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
   const [startPickerValue, setStartPickerValue] = useState(timeStringToPickerValue("09:00"));
   const [endPickerValue, setEndPickerValue] = useState(timeStringToPickerValue("10:00"));
 
+  // Lock body scroll when either picker is open
+  useEffect(() => {
+    if (showStartPicker || showEndPicker) {
+      // Save current body overflow and prevent scrolling
+      const originalOverflow = document.body.style.overflow;
+      const originalTouchAction = document.body.style.touchAction;
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.touchAction = originalTouchAction;
+      };
+    }
+  }, [showStartPicker, showEndPicker]);
+
   // Clear end time when start time is removed
   useEffect(() => {
     if (!startTime && endTime) {
@@ -221,7 +237,11 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
     if (!title.trim()) return;
     if (timeError) return;
 
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split("T")[0];
+
     const itemData: Partial<ScheduleItem> = {
+      date: today,
       title: title.trim(),
       isDeepWork,
       startTime: startTime || undefined,
@@ -258,13 +278,14 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
         },
         schedule.items
       );
-      
+            
       const newItem: ScheduleItem = {
         id: nanoid(),
         completed: false,
         order,
         ...itemData,
       } as ScheduleItem;
+      
       addItem(newItem);
     }
 
@@ -491,12 +512,23 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
 
       {/* Start Time Picker Modal */}
       {showStartPicker && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+        <div 
+          className="fixed inset-0 z-[60] flex items-end justify-center"
+          onTouchMove={(e) => {
+            // Only prevent scroll if touching the backdrop (not the picker itself)
+            if (e.target === e.currentTarget) {
+              e.preventDefault();
+            }
+          }}
+        >
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => setShowStartPicker(false)}
           />
-          <div className="relative w-full max-w-4xl bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl">
+          <div 
+            className="relative w-full max-w-4xl bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl"
+            style={{ touchAction: 'pan-y' }}
+          >
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
               <button
                 onClick={() => setShowStartPicker(false)}
@@ -587,12 +619,23 @@ export function AddItemSheet({ isOpen, onClose, onSave, editItem, prefillTime }:
 
       {/* End Time Picker Modal */}
       {showEndPicker && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+        <div 
+          className="fixed inset-0 z-[60] flex items-end justify-center"
+          onTouchMove={(e) => {
+            // Only prevent scroll if touching the backdrop (not the picker itself)
+            if (e.target === e.currentTarget) {
+              e.preventDefault();
+            }
+          }}
+        >
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => setShowEndPicker(false)}
           />
-          <div className="relative w-full max-w-4xl bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl">
+          <div 
+            className="relative w-full max-w-4xl bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl"
+            style={{ touchAction: 'pan-y' }}
+          >
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
               <button
                 onClick={() => setShowEndPicker(false)}
